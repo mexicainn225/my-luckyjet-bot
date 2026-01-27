@@ -40,7 +40,7 @@ def send_instant(message):
     bot.send_message(message.chat.id, f"🚀 **CIBLE : {prediction}x**", parse_mode='Markdown')
 
 # Lancement du bot et du serveur en même temps
-if name == "__main__":
+if __name__== "__main__":
     # Lancer le bot en arrière-plan
     threading.Thread(target=lambda: bot.infinity_polling(), daemon=True).start()
     # Lancer le serveur web demandé par Render

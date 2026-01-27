@@ -92,7 +92,7 @@ def send_signal(message):
     bot.send_message(message.chat.id, texte_signal, parse_mode='Markdown', disable_web_page_preview=True)
 
 # --- LANCEMENT ---
-if name == "__main__":
+if __name__== "__main__":
     # Le thread maintient le bot actif pendant que Flask répond à Render
     threading.Thread(target=bot.infinity_polling, kwargs={'non_stop': True, 'timeout': 60}, daemon=True).start()
     

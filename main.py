@@ -103,8 +103,7 @@ def send_signal(message):
         f"🚀 SIGNAL MEXICAIN225 🧨\n\n"
         f"⚡️ TIME : {time_range}\n"
         f"⚡️ CÔTE : {random.randint(50, 150)}X+\n"
-        f"⚡️ PRÉVISION : {random.randint(10, 45)}X+\n"
-f"⚡️ ASSURANCE : {random.randint(2, 8)}X+\n\n"
+        f"⚡️ PRÉVISION : {random.randint(10, 45)}X+\n"f"⚡️ ASSURANCE : {random.randint(2, 8)}X+\n\n"
         f"📍 [CLIQUE ICI POUR JOUER]({LIEN_INSCRIPTION})\n"
         f"🎁 CODE PROMO : **{CODE_PROMO}**\n\n"
         f"👤 CONTACT : {CONTACT_ADMIN}"
@@ -120,7 +119,9 @@ f"⚡️ ASSURANCE : {random.randint(2, 8)}X+\n\n"
 
 # --- 5. LANCEMENT DU SERVEUR ---
 if name == "__main__":
+    # Lancement du bot
     threading.Thread(target=bot.infinity_polling, kwargs={'timeout': 60}, daemon=True).start()
+    
+    # Lancement de Flask
     port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)    app.run(host='0.0.0.0', port=port)
-
+    app.run(host='0.0.0.0', port=port)

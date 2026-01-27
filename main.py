@@ -93,9 +93,11 @@ def send_signal(message):
 
 # --- LANCEMENT ---
 if __name__== "__main__":
-    # Le thread maintient le bot actif pendant que Flask répond à Render
-    threading.Thread(target=bot.infinity_polling, kwargs={'non_stop': True, 'timeout': 60}, daemon=True).start()
+    # On retire 'non_stop' des kwargs car infinity_polling le gère déjà
+    threading.Thread(target=bot.infinity_polling, kwargs={'timeout': 60}, daemon=True).start()
     
-    # Port Render
+    # Port Render (par défaut 10000)
     port = int(os.environ.get("PORT", 10000))
+    
+    # Lancement de Flask
     app.run(host='0.0.0.0', port=port)

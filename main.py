@@ -123,6 +123,4 @@ if name == "__main__":
     threading.Thread(target=bot.infinity_polling, kwargs={'timeout': 60}, daemon=True).start()
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)    app.run(host='0.0.0.0', port=port)
-    
-    # Lancement de Flask
-    app.run(host='0.0.0.0', port=port)
+

@@ -26,6 +26,21 @@ def generer_liste_signaux():
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
+    # Création du bouton pour rejoindre le canal
+    markup = telebot.types.InlineKeyboardMarkup()
+    btn_canal = telebot.types.InlineKeyboardButton("📢 Rejoindre le Canal", url="https://t.me/mexicain225officiel")
+    btn_signal = telebot.types.InlineKeyboardButton("🚀 Obtenir un Signal", callback_data="get_signal")
+    markup.add(btn_canal)
+    markup.add(btn_signal)
+
+    texte = (
+        "👋 **Bienvenue sur le Bot Lucky Jet GRATUIT MEXICAIN225 !**\n\n"
+        "📢 Pour accéder au bot, rejoignez notre canal :\n"
+        "👉 https://t.me/mexicain225officiel\n\n"
+        "Clique sur les boutons ci-dessous pour commencer !"
+    )
+    
+    bot.send_message(message.chat.id, texte, reply_markup=markup, parse_mode='Markdown')def send_welcome(message):
     texte = "🤖 **LUCKY JET PREDICTOR ACTIF**\n\n/signal - Pour un signal\n/planning - Pour les failles"
     bot.reply_to(message, texte, parse_mode='Markdown')
 

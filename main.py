@@ -118,7 +118,7 @@ def send_signal(message):
     bot.send_message(message.chat.id, f"⏳ INFO : Ton prochain signal sera prêt dans environ {wait_time} minutes. Reste attentif ! 🔔")
 
 # --- 5. LANCEMENT DU SERVEUR ---
-if name == "__main__":
+if __name__== "__main__":
     # Lancement du bot
     threading.Thread(target=bot.infinity_polling, kwargs={'timeout': 60}, daemon=True).start()
     

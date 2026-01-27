@@ -5,75 +5,83 @@ from flask import Flask
 import threading
 import os
 
-# 1. Configuration
+# 1. Configuration du serveur Web (pour Render)
 app = Flask(__name__)
 @app.route('/')
 def health_check():
     return "Bot is running", 200
 
+# 2. Paramètres du Bot
 API_TOKEN = '8373837099:AAEffbpvjdegwuUgGT5nvPHAWB_oxSLIdu0'
 bot = telebot.TeleBot(API_TOKEN)
-CANAL_ID = "@mexicain225officiel" # ID du canal pour la vérification
+CANAL_ID = "@mexicain225officiel" 
 LIEN_INSCRIPTION = "https://lkbb.cc/e2d8"
 CODE_PROMO = "COK225"
-IMAGE_URL = "https://i.ibb.co/LzNf9fV/luckyjet-banner.jpg" # Tu peux changer ce lien
 
-# Dictionnaire pour compter les signaux par utilisateur
+# Dictionnaire pour compter les signaux
 user_signals_count = {}
 
-# Fonction pour vérifier l'abonnement au canal
+# 3. Fonction de vérification d'abonnement
 def check_sub(user_id):
     try:
         member = bot.get_chat_member(CANAL_ID, user_id)
         if member.status in ['member', 'administrator', 'creator']:
             return True
         return False
-    except:
+    except Exception as e:
+        print(f"Erreur vérification abonnement: {e}")
         return False
 
-# Menu de boutons (Clavier du bas)
+# 4. Menu principal avec boutons
 def main_menu():
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add(telebot.types.KeyboardButton("🚀 OBTENIR UN SIGNAL"), telebot.types.KeyboardButton("📅 PLANNING"))
+    markup.add(telebot.types.KeyboardButton("🚀 OBTENIR UN SIGNAL"))
+    markup.add(telebot.types.KeyboardButton("📅 PLANNING"))
     return markup
 
-# 4. Message de Bienvenue avec Image et Vérification
+# 5. Gestion de la commande /start
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    if not check_sub(message.from_user.id):
+    user_id = message.from_user.id
+    if not check_sub(user_id):
         markup = telebot.types.InlineKeyboardMarkup()
-        markup.add(telebot.types.InlineKeyboardButton("📢 Rejoindre le Canal", url=f"https://t.me/mexicain225officiel"))
-        bot.send_photo(message.chat.id, IMAGE_URL, 
-                       caption=f"⚠️ **ACCÈS REFUSÉ !**\n\nTu dois rejoindre le canal pour utiliser ce bot gratuitement.\n\nClique ici 👇", 
+        markup.add(telebot.types.InlineKeyboardButton("📢 Rejoindre le Canal", url="https://t.me/mexicain225officiel"))
+        bot.send_message(message.chat.id, 
+                       "👋 **Bienvenue sur le Bot Lucky Jet GRATUIT MEXICAIN225 !**\n\n"
+                       "⚠️ **ACCÈS REFUSÉ**\n\n"
+                       "Pour utiliser le bot, tu dois impérativement rejoindre notre canal officiel ci-dessous.", 
                        reply_markup=markup, parse_mode='Markdown')
         return
 
-    bot.send_photo(message.chat.id, IMAGE_URL, 
-                   caption=f"👋 **Bienvenue sur le Bot Lucky Jet GRATUIT MEXICAIN225 !**\n\nUtilise le menu ci-dessous pour commencer.", 
+    bot.send_message(message.chat.id, 
+                   "✅ **Accès validé !**\n\nUtilise le menu ci-dessous pour générer tes signaux Lucky Jet.", 
                    reply_markup=main_menu(), parse_mode='Markdown')
 
-# 5 & 6. Gestion du Signal et Inscription
+# 6. Gestion du bouton SIGNAL
 @bot.message_handler(func=lambda message: message.text == "🚀 OBTENIR UN SIGNAL")
 def send_signal(message):
     user_id = message.from_user.id
     
-    # Vérification abonnement canal
     if not check_sub(user_id):
-        bot.reply_to(message, "❌ Tu as quitté le canal. Rejoins-le pour continuer !")
+        bot.reply_to(message, "❌ Tu dois être dans le canal pour voir les signaux !")
         return
 
-    # Vérification après 3 signaux (Condition d'inscription)
+    # Vérification après 3 signaux
     count = user_signals_count.get(user_id, 0)
     if count >= 3:
         markup = telebot.types.InlineKeyboardMarkup()
-        markup.add(telebot.types.InlineKeyboardButton("🔗 S'INSCRIRE MAINTENANT", url=LIEN_INSCRIPTION))
+        markup.add(telebot.types.InlineKeyboardButton("🔗 S'INSCRIRE SUR 1WIN", url=LIEN_INSCRIPTION))
         bot.send_message(message.chat.id, 
-                         f"🔒 **LIMITE ATTEINTE !**\n\nPour continuer à recevoir des signaux illimités, tu dois :\n1. T'inscrire sur 1win avec le code : **{CODE_PROMO}**\n2. Déposer sur ton compte.\n\nUne fois fait, clique sur le bouton ci-dessous !", 
+                         f"🔒 **LIMITE ATTEINTE !**\n\n"
+                         f"Pour continuer à recevoir des signaux, tu dois :\n"
+                         f"1️⃣ T'inscrire via le bouton ci-dessous\n"
+                         f"2️⃣ Utiliser le code promo : **{CODE_PROMO}**\n"
+                         f"3️⃣ Faire un dépôt minimum.\n\n"
+                         f"Une fois ton compte créé, les signaux seront débloqués !", 
                          reply_markup=markup, parse_mode='Markdown')
-        # On ne reset pas le compteur ici pour forcer l'action
         return
 
-    # Génération du signal au format demandé
+    # Génération du signal
     now = datetime.now()
     time_range = f"{(now + timedelta(minutes=2)).strftime('%H:%M')} - {(now + timedelta(minutes=4)).strftime('%H:%M')}"
     cote = f"{random.randint(50, 150)}X+"
@@ -91,22 +99,21 @@ def send_signal(message):
     )
     
     bot.send_message(message.chat.id, texte_signal, parse_mode='Markdown', disable_web_page_preview=True)
-    
-    # Augmenter le compteur de l'utilisateur
     user_signals_count[user_id] = count + 1
 
-# 7. Commande Planning
-@bot.message_handler(func=lambda message: message.text == "📅 PLANNING")
+# 7. Gestion du bouton PLANNING
+@bot.message_handler(func=lambda message: message.
+text == "📅 PLANNING")
 def send_planning(message):
-    signaux = []
     maintenant = datetime.now()
+    liste = []
     for i in range(3):
-        heure = (maintenant + timedelta(minutes=random.randint(10, 60))).strftime('%H:%M')
-        signaux.append(f"⏰ {heure} ➔ Objectif: {random.randint(2, 10)}x")
+        h = (maintenant + timedelta(minutes=random.randint(15, 120))).strftime('%H:%M')
+        liste.append(f"⏰ {h} ➔ Objectif: {random.randint(2, 15)}x")
     
-    bot.send_message(message.chat.id, "📅 **PLANNING DES PROCHAINES FAILLES**\n\n" + "\n".join(signaux), parse_mode='Markdown')
+    bot.send_message(message.chat.id, "📅 **PLANNING DES PROCHAINES FAILLES**\n\n" + "\n".join(liste), parse_mode='Markdown')
 
-# Lancement
+# 8. Lancement final
 if __name__== "__main__":
     threading.Thread(target=lambda: bot.infinity_polling(), daemon=True).start()
     port = int(os.environ.get("PORT", 8080))

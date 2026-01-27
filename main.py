@@ -21,7 +21,7 @@ LIEN_INSCRIPTION = "https://lkbb.cc/e2d8"
 CODE_PROMO = "COK225"
 CONTACT_ADMIN = "@MEXICAINN225"
 
-# Stockage temporaire des signaux (se réinitialise au redémarrage sur Render)
+# Stockage temporaire des signaux
 user_signals_count = {}
 
 # --- 2. SERVEUR DE RÉVEIL (POUR RENDER) ---
@@ -31,7 +31,6 @@ def health_check():
 
 # --- 3. FONCTIONS DE VÉRIFICATION ---
 def check_sub(user_id):
-    """Vérifie si l'utilisateur est dans le canal (Sauf si c'est l'Admin)"""
     if user_id == ADMIN_ID:
         return True
     try:
@@ -41,7 +40,6 @@ def check_sub(user_id):
         return False
 
 def main_menu():
-    """Affiche le bouton principal"""
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(telebot.types.KeyboardButton("🚀 OBTENIR UN SIGNAL"))
     return markup
@@ -71,7 +69,7 @@ def send_signal(message):
     # Vérifications (sauf pour l'admin)
     if user_id != ADMIN_ID:
         if not check_sub(user_id):
-            bot.reply_to(message, "❌ Tu dois être dans le canal pour voir les signaux !")
+            bot.reply_to(message, "❌ Tu dois être dans le canal !")
             return
 
         count = user_signals_count.get(user_id, 0)
@@ -89,29 +87,30 @@ def send_signal(message):
         user_signals_count[user_id] = count + 1
 
     # --- ANIMATION D'ANALYSE ---
-    status_msg = bot.send_message(message.chat.id, "🔍 **Analyse des algorithmes en cours...**", parse_mode='Markdown')
+    status_msg = bot.send_message(message.chat.id, "🔍 **Analyse des algorithmes...**", parse_mode='Markdown')
     time.sleep(2)
-    bot.edit_message_text("📡 **Connexion sécurisée au serveur...**", message.chat.id, status_msg.message_id, parse_mode='Markdown')
+    bot.edit_message_text("📡 **Connexion au serveur...**", message.chat.id, status_msg.message_id, parse_mode='Markdown')
     time.sleep(2)
-    bot.edit_message_text("🧪 **Extraction de la côte de sécurité...**", message.chat.id, status_msg.message_id, parse_mode='Markdown')
+    bot.edit_message_text("💎 **GÉNÉRATION DU SIGNAL...**", message.chat.id, status_msg.message_id, parse_mode='Markdown')
     time.sleep(1.5)
 
-    # --- CALCUL DU SIGNAL (Intervalle 5-7 min) ---
+    # --- CALCUL DU SIGNAL ---
     now = datetime.now()
     wait_time = random.randint(5, 7)
     time_range = f"{(now + timedelta(minutes=wait_time)).strftime('%H:%M')} - {(now + timedelta(minutes=wait_time+2)).strftime('%H:%M')}"
-texte_signal = (
+    
+    texte_signal = (
         f"🚀 SIGNAL MEXICAIN225 🧨\n\n"
         f"⚡️ TIME : {time_range}\n"
         f"⚡️ CÔTE : {random.randint(50, 150)}X+\n"
         f"⚡️ PRÉVISION : {random.randint(10, 45)}X+\n"
-        f"⚡️ ASSURANCE : {random.randint(2, 8)}X+\n\n"
+f"⚡️ ASSURANCE : {random.randint(2, 8)}X+\n\n"
         f"📍 [CLIQUE ICI POUR JOUER]({LIEN_INSCRIPTION})\n"
         f"🎁 CODE PROMO : **{CODE_PROMO}**\n\n"
         f"👤 CONTACT : {CONTACT_ADMIN}"
     )
     
-    # Envoi du signal final
+    # Envoi du signal et nettoyage
     bot.delete_message(message.chat.id, status_msg.message_id)
     bot.send_message(message.chat.id, texte_signal, parse_mode='Markdown', disable_web_page_preview=True)
 
@@ -120,13 +119,10 @@ texte_signal = (
     bot.send_message(message.chat.id, f"⏳ INFO : Ton prochain signal sera prêt dans environ {wait_time} minutes. Reste attentif ! 🔔")
 
 # --- 5. LANCEMENT DU SERVEUR ---
-if__name__== "__main__":
-    # Lancement du polling Telegram dans un thread séparé
+if name == "__main__":
     threading.Thread(target=bot.infinity_polling, kwargs={'timeout': 60}, daemon=True).start()
-    
-    # Lancement de Flask sur le port Render (10000 par défaut)
     port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port)    app.run(host='0.0.0.0', port=port)
     
     # Lancement de Flask
     app.run(host='0.0.0.0', port=port)

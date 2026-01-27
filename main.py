@@ -1,8 +1,17 @@
 import telebot
 import random
 from datetime import datetime, timedelta
+from flask import Flask
+import threading
+import os
 
-# Ton Token est maintenant bien placé dans une variable
+# Configuration du serveur bidon pour Render
+app = Flask(__name__)
+@app.route('/')
+def health_check():
+    return "Bot is running", 200
+
+# Ton Token
 API_TOKEN = '8373837099:AAEffbpvjdegwuUgGT5nvPHAWB_oxSLIdu0'
 bot = telebot.TeleBot(API_TOKEN)
 
@@ -17,12 +26,7 @@ def generer_liste_signaux():
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    texte = (
-        "🤖 **BIENVENUE SUR LUCKY JET PREDICTOR**\n\n"
-        "Commandes :\n"
-        "🚀 /signal - Signal immédiat\n"
-        "📅 /planning - Prochaines failles"
-    )
+    texte = "🤖 **LUCKY JET PREDICTOR ACTIF**\n\n/signal - Pour un signal\n/planning - Pour les failles"
     bot.reply_to(message, texte, parse_mode='Markdown')
 
 @bot.message_handler(commands=['planning'])
@@ -35,4 +39,10 @@ def send_instant(message):
     prediction = round(random.uniform(1.20, 3.50), 2)
     bot.send_message(message.chat.id, f"🚀 **CIBLE : {prediction}x**", parse_mode='Markdown')
 
-bot.polling()
+# Lancement du bot et du serveur en même temps
+if name == "__main__":
+    # Lancer le bot en arrière-plan
+    threading.Thread(target=lambda: bot.infinity_polling(), daemon=True).start()
+    # Lancer le serveur web demandé par Render
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)

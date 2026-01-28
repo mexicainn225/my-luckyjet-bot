@@ -158,7 +158,7 @@ def handle_signals(message):
     bot.send_video(message.chat.id, ID_VIDEO_UNIQUE, caption=texte, reply_markup=markup_play, parse_mode='Markdown')
 
 # --- 5. RUN ---
-if__name__== "__main__":
+if __name__== "__main__":
     bot.remove_webhook()
     time.sleep(1)
     threading.Thread(target=bot.infinity_polling, kwargs={'timeout': 60}, daemon=True).start()

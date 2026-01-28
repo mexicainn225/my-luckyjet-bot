@@ -9,7 +9,6 @@ import time
 # --- 1. CONFIGURATION ---
 app = Flask(__name__)
 
-# Ton Token directement intégré
 API_TOKEN = '8373837099:AAEffbpvjdegwuUgGT5nvPHAWB_oxSLIdu0'
 ADMIN_ID = 5724620019  
 bot = telebot.TeleBot(API_TOKEN)
@@ -20,7 +19,6 @@ CODE_PROMO = "COK225"
 CONTACT_ADMIN = "@MEXICAINN225"
 ID_VIDEO_UNIQUE = "https://t.me/gagnantpro1xbet/138958" 
 
-# --- GESTION DE LA PERSISTANCE ---
 DB_FILE = "validated_users.txt"
 
 def load_validated_users():
@@ -34,7 +32,6 @@ def save_user(user_id):
     with open(DB_FILE, "a") as f:
         f.write(f"{user_id}\n")
 
-# Initialisation
 validated_users = load_validated_users()
 user_signals_count = {}
 last_signal_expiry = {} 
@@ -76,62 +73,53 @@ def handle_id_submission(message):
     user_id = message.from_user.id
     user_name = message.from_user.first_name
     id_1xbet = message.text
-
     markup = telebot.types.InlineKeyboardMarkup()
     markup.add(telebot.types.InlineKeyboardButton("✅ Valider l'accès", callback_data=f"accept_{user_id}"))
-    
-    bot.send_message(ADMIN_ID, f"🔔 **DEMANDE DE VALIDATION**\n\nUtilisateur : {user_name}\nID 1xBet : `{id_1xbet}`", 
-                     parse_mode='Markdown', reply_markup=markup)
-    
-    bot.send_message(message.chat.id, "⏳ **DEMANDE ENVOYÉE !**\nL'admin vérifie ton inscription. Tu recevras une notification sous peu.")
+    bot.send_message(ADMIN_ID, f"🔔 **DEMANDE DE VALIDATION**\n\nUtilisateur : {user_name}\nID 1xBet : `{id_1xbet}`", parse_mode='Markdown', reply_markup=markup)
+    bot.send_message(message.chat.id, "⏳ **DEMANDE ENVOYÉE !**\nL'admin vérifie ton inscription.")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("accept_"))
 def admin_validation(call):
     target_user_id = int(call.data.split("_")[1])
     if target_user_id not in validated_users:
         save_user(target_user_id)
-    
     try:
-        bot.send_message(target_user_id, "🎉 **FÉLICITATIONS !**\nTon compte a été validé.", 
-                         reply_markup=main_menu(target_user_id))
+        bot.send_message(target_user_id, "🎉 **FÉLICITATIONS !**\nTon compte a été validé.", reply_markup=main_menu(target_user_id))
         bot.edit_message_text(f"✅ Utilisateur {target_user_id} validé !", chat_id=ADMIN_ID, message_id=call.message.message_id)
     except:
         bot.answer_callback_query(call.id, "Erreur lors de la notification.")
 
-# --- 4. LOGIQUE DES SIGNAUX AVEC ATTENTE ---
+# --- 4. LOGIQUE DES SIGNAUX ---
 
 @bot.message_handler(func=lambda message: message.text in ["🚀 OBTENIR UN SIGNAL", "👑 SIGNAL PREMIUM 👑"])
 def handle_signals(message):
     user_id = message.from_user.id
     now = datetime.now()
 
-    # Vérification anti-spam (attente de la fin du signal précédent)
     if user_id in last_signal_expiry:
-        if now < last_signal_expiry[user_id]:diff = last_signal_expiry[user_id] - now
+        if now < last_signal_expiry[user_id]:
+            diff = last_signal_expiry[user_id] - now
             mins, secs = divmod(int(diff.total_seconds()), 60)
-            bot.reply_to(message, f"⏳ VEUILLEZ PATIENTER**\n\nL'analyse précédente est encore en cours de validité.\nNouvelle analyse disponible dans : **{mins}m {secs}s.")
+            bot.reply_to(message, f"⏳ ATTENTE**\n\nAttends **{mins}m {secs}s pour le prochain signal.")
             return
 
     if not check_sub(user_id):
-        bot.reply_to(message, "❌ Abonne-toi au canal !")
+        bot.
+reply_to(message, "❌ Abonne-toi au canal !")
         return
 
-    # Limite gratuite
     count = user_signals_count.get(user_id, 0)
     if user_id != ADMIN_ID and user_id not in validated_users and count >= 3:
         markup = telebot.types.InlineKeyboardMarkup()
         markup.add(telebot.types.InlineKeyboardButton("🎁 M'INSCRIRE", url=LIEN_INSCRIPTION))
-        bot.send_message(message.chat.id, "🔒 **LIMITE GRATUITE ATTEINTE !**\nInscris-toi pour continuer.", reply_markup=markup)
+        bot.send_message(message.chat.id, "🔒 **LIMITE ATTEINTE !**\nInscris-toi pour continuer.", reply_markup=markup)
         return
 
-    # Création du signal
     wait = random.randint(3, 6)
     duree = 2
     time_start_dt = now + timedelta(minutes=wait)
     time_end_dt = time_start_dt + timedelta(minutes=duree)
-    
-    last_signal_expiry[user_id] = time_end_dt # Bloquer jusqu'à la fin
-
+    last_signal_expiry[user_id] = time_end_dt
     time_range = f"{time_start_dt.strftime('%H:%M')} - {time_end_dt.strftime('%H:%M')}"
 
     if "PREMIUM" in message.text:
@@ -154,10 +142,9 @@ def handle_signals(message):
 
     markup_play = telebot.types.InlineKeyboardMarkup()
     markup_play.add(telebot.types.InlineKeyboardButton("📲 JOUER MAINTENANT", url=LIEN_INSCRIPTION))
-    
     bot.send_video(message.chat.id, ID_VIDEO_UNIQUE, caption=texte, reply_markup=markup_play, parse_mode='Markdown')
 
-# --- 5. RUN ---
+# --- 5. LANCEMENT ---
 if __name__== "__main__":
     bot.remove_webhook()
     time.sleep(1)

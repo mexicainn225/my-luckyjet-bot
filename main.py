@@ -14,87 +14,62 @@ LIEN_INSCRIPTION = "https://lkbb.cc/e2d8"
 CODE_PROMO = "COK225"
 ID_VIDEO_UNIQUE = "https://t.me/gagnantpro1xbet/138958" 
 
-DB_FILE = "vip_users.txt"
-USAGE_FILE = "usage_stats.txt"
+CONFIG_FILE = "base_minute.txt"
 
 # --- PERSISTENCE ---
-def load_db(file):
-    if os.path.exists(file):
-        with open(file, "r") as f: return set(int(l.strip()) for l in f if l.strip().isdigit())
-    return set()
+def get_base_minute():
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r") as f:
+            val = f.read().strip()
+            return int(val) if val.isdigit() else 23
+    return 23
 
-def save_user(file, u_id):
-    with open(file, "a") as f: f.write(f"{u_id}\n")
-
-def load_usage():
-    usage = {}
-    if os.path.exists(USAGE_FILE):
-        with open(USAGE_FILE, "r") as f:
-            for line in f:
-                if ":" in line:
-                    u_id, count = line.strip().split(":")
-                    usage[int(u_id)] = int(count)
-    return usage
-
-vip_users = load_db(DB_FILE)
-user_counts = load_usage()
-last_signal_time = {}
-
-# --- LOGIQUE ---
-def check_sub(u_id):
-    if u_id == ADMIN_ID: return True
-    try:
-        m = bot.get_chat_member(CANAL_ID, u_id)
-        return m.status in ['member', 'administrator', 'creator']
-    except: return False
-
-@bot.message_handler(commands=['start'])
-def start(msg):
-    u_id = msg.from_user.id
-    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("🚀 OBTENIR UN SIGNAL")
-    bot.send_message(msg.chat.id, f"🔥 **Bienvenue {msg.from_user.first_name} !**", reply_markup=markup, parse_mode='Markdown')
-
-# --- ACTION: SIGNAL ---
-@bot.message_handler(func=lambda m: m.text == "🚀 OBTENIR UN SIGNAL")
-def get_signal(msg):
-    u_id = msg.from_user.id
+# --- LOGIQUE DE SYNCHRONISATION (RÉSULTAT UNIQUE) ---
+def get_universal_signal():
     now = datetime.now()
-
-    if not check_sub(u_id):
-        bot.send_message(msg.chat.id, "❌ Rejoins le canal @mexicain225officiel d'abord !")
-        return
-
-    # L'Admin et les VIP ne sont pas limités
-    count = user_counts.get(u_id, 0)
-    if u_id != ADMIN_ID and u_id not in vip_users and count >= 3:
-        bot.send_message(msg.chat.id, "🚫 **LIMITE ATTEINTE**\n\nInscris-toi avec le code `COK225`, fais un dépôt et envoie ton ID ici pour devenir VIP illimité !")
-        return
-
-    # Simulation visuelle (Barre de chargement)
-    status = bot.send_message(msg.chat.id, "⏳ `[▒▒▒▒▒▒▒▒▒▒] 15%`", parse_mode='Markdown')
-    time.sleep(2)
-    bot.edit_message_text("⏳ `[██████▒▒▒▒] 65%`", msg.chat.id, status.message_id, parse_mode='Markdown')
-    time.sleep(2)
-    bot.edit_message_text("✅ `[██████████] 100%`", msg.chat.id, status.message_id, parse_mode='Markdown')
-    time.sleep(1)
-    bot.delete_message(msg.chat.id, status.message_id)
-
-    # Calcul temps (Décalage 5-7 min)
-    delay = random.randint(5, 7)
-    start_time = now + timedelta(minutes=delay)
-    time_range = f"{start_time.strftime('%H:%M')} - {(start_time + timedelta(minutes=2)).strftime('%H:%M')}"
+    base_minute = get_base_minute()
     
-    # Cotes Élevées
+    current_total_mins = now.hour * 60 + now.minute
+    base_total_mins = now.hour * 60 + base_minute
+    
+    if current_total_mins < base_total_mins:
+        base_total_mins -= 60
+
+    next_signal_mins = base_total_mins
+    while next_signal_mins <= current_total_mins:
+        next_signal_mins += 7
+        
+    start_time = now.replace(hour=(next_signal_mins // 60) % 24, minute=next_signal_mins % 60, second=0, microsecond=0)
+    
+    # --- LA MAGIE ICI ---
+    # On utilise l'heure du signal comme "graine" pour le hasard
+    # Ainsi, pour un même start_time, random donnera toujours le même chiffre
+    random.seed(start_time.timestamp()) 
+    
     cote = random.randint(30, 150)
     prevision = random.randint(10, 25)
     
-    # Mise à jour compteur
-    if u_id != ADMIN_ID and u_id not in vip_users:
-        user_counts[u_id] = count + 1
-        with open(USAGE_FILE, "a") as f: f.write(f"{u_id}:{user_counts[u_id]}\n")
+    # On réinitialise le hasard pour ne pas perturber le reste du bot
+    random.seed() 
+    
+    return start_time, cote, prevision
 
-    # Format Exact Demandé
+# --- ACTIONS ---
+@bot.message_handler(func=lambda m: m.text == "🚀 OBTENIR UN SIGNAL")
+def get_signal(msg):
+    u_id = msg.from_user.id
+    
+    # Simulation de calcul
+    status = bot.send_message(msg.chat.id, "⏳ `SYNCHRONISATION AVEC LE SERVEUR...`")
+    time.sleep(2)
+    bot.delete_message(msg.chat.id, status.message_id)
+
+    # Récupération du signal unique pour tout le monde
+    start_time, cote, prevision = get_universal_signal()
+    
+    end_time_display = start_time + timedelta(minutes=2)
+    time_range = f"{start_time.strftime('%H:%M')} - {end_time_display.strftime('%H:%M')}"
+
     txt = (
         f"🚀 **SIGNAL MEXICAIN225** 🧨\n\n"
         f"⚡️ **TIME** : `{time_range}`\n"
@@ -110,26 +85,20 @@ def get_signal(msg):
     kb.add(telebot.types.InlineKeyboardButton("📍 CLIQUE ICI POUR JOUER", url=LIEN_INSCRIPTION))
     bot.send_video(msg.chat.id, ID_VIDEO_UNIQUE, caption=txt, reply_markup=kb, parse_mode='Markdown')
 
-# --- ADMINISTRATION ---
-@bot.message_handler(func=lambda m: m.text.isdigit() and len(m.text) > 5)
-def handle_id_submission(msg):
-    u_id = msg.from_user.id
-    kb = telebot.types.InlineKeyboardMarkup()
-    kb.add(telebot.types.InlineKeyboardButton("✅ VALIDER VIP", callback_data=f"val_{u_id}"))
-    bot.send_message(ADMIN_ID, f"🔔 **NOUVEL ID REÇU**\nUser: {msg.from_user.first_name}\nID: `{msg.text}`", reply_markup=kb, parse_mode='Markdown')
-    bot.send_message(msg.chat.id, "⏳ ID reçu. Activation en cours par l'administrateur...")
-
-@bot.callback_query_handler(func=lambda c: c.data.startswith("val_"))
-def admin_confirm(c):
-    target_id = int(c.data.split("_")[1])
-    if target_id not in vip_users:
-        vip_users.add(target_id)
-        save_user(DB_FILE, target_id)
-        bot.send_message(target_id, "🌟 **ACCÈS VIP ACTIVÉ !**\nTu es maintenant en mode illimité. Profites-en !")
-    bot.edit_message_text(f"✅ Utilisateur {target_id} validé !", ADMIN_ID, c.message.message_id)
+# --- COMMANDE CONFIG ADMIN ---
+@bot.message_handler(commands=['config'])
+def config_minute(msg):
+    if msg.from_user.id == ADMIN_ID:
+        try:
+            new_min = int(msg.text.split()[1])
+            with open(CONFIG_FILE, "w") as f: f.write(str(new_min))
+            bot.send_message(ADMIN_ID, f"✅ Nouvelle base : minute `{new_min}`. Tous les signaux mondiaux sont synchronisés sur cette base + 7min.")
+        except:
+            bot.send_message(ADMIN_ID, "❌ Utilise : `/config 23`")
 
 if __name__ == "__main__":
-    @app.route('/')
+    threading.Thread(target=bot.infinity_polling, daemon=True).start()
+    app.run(host='0.0.0.0', port=10000)
     def home(): return "Bot en ligne", 200
     threading.Thread(target=bot.infinity_polling, daemon=True).start()
     app.run(host='0.0.0.0', port=10000)

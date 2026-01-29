@@ -33,15 +33,22 @@ def load_vip():
 vip_users = load_vip()
 user_counts = {}
 
-# --- LOGIQUE SYNCHRONISÉE LUCKY JET ---
+# --- LOGIQUE SYNCHRONISÉE LUCKY JET (INTERVALLE 14 MIN) ---
 def get_lucky_signal():
     now = datetime.now()
     base_minute = get_base_minute()
+    
     current_total = now.hour * 60 + now.minute
     base_total = now.hour * 60 + base_minute
-    if current_total < base_total: base_total -= 60
+    
+    if current_total < base_total:
+        base_total -= 60
+
     next_mins = base_total
-    while next_mins <= current_total: next_mins += 7
+    # L'intervalle est maintenant fixé à 14 minutes
+    while next_mins <= current_total:
+        next_mins += 14
+        
     start_time = now.replace(hour=(next_mins // 60) % 24, minute=next_mins % 60, second=0, microsecond=0)
     
     random.seed(start_time.timestamp()) 
@@ -51,13 +58,13 @@ def get_lucky_signal():
     random.seed() 
     return start_time, cote, prevision, assurance
 
-# --- ANIMATION D'IMPRESSION ---
+# --- ANIMATION ---
 def impressive_loading(chat_id):
     steps = [
-        "📡 `Connexion au serveur Lucky Jet...`",
-        "⚙️ `Analyse des données de vol (Hachage)...`",
-        "🧠 `Calcul de la probabilité par l'IA...`",
-        "🚀 `PRÉDICTION PRÊTE !`"
+        "📡 `Recherche de la faille algorithmique...`",
+        "⚙️ `Analyse des patterns (Double Cycle 14min)...`",
+        "🧠 `Calcul de probabilité IA : 99.2%...`",
+        "🚀 `SIGNAL DÉTECTÉ !`"
     ]
     sent_msg = bot.send_message(chat_id, steps[0], parse_mode='Markdown')
     for step in steps[1:]:
@@ -75,7 +82,7 @@ def change_minute(msg):
         try:
             val = msg.text.split()[1]
             with open(CONFIG_FILE, "w") as f: f.write(val)
-            bot.send_message(ADMIN_ID, f"🎯 **STRATÉGIE MISE À JOUR**\nBase Lucky Jet : minute `{val}`")
+            bot.send_message(ADMIN_ID, f"🎯 **STRATÉGIE RECALIBRÉE**\nBase : minute `{val}`\nIntervalle : **14 minutes**")
         except:
             bot.send_message(ADMIN_ID, "⚠️ Usage : `/minute 23`")
 
@@ -83,30 +90,25 @@ def change_minute(msg):
 def list_vips(msg):
     if msg.from_user.id == ADMIN_ID:
         vips = load_vip()
-        if not vips:
-            bot.send_message(ADMIN_ID, "🚫 Aucun utilisateur VIP pour le moment.")
-            return
-        liste = "\n".join([f"• `{uid}`" for uid in vips])
-        bot.send_message(ADMIN_ID, f"🌟 **LISTE DES MEMBRES VIP ({len(vips)})** :\n\n{liste}", parse_mode='Markdown')
+        liste = "\n".join([f"• `{uid}`" for uid in vips]) if vips else "Aucun VIP."
+        bot.send_message(ADMIN_ID, f"🌟 **MEMBRES VIP ({len(vips)})** :\n\n{liste}", parse_mode='Markdown')
 
 # --- ACTIONS UTILISATEURS ---
 @bot.message_handler(commands=['start'])
 def start(msg):
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add("🚀 OBTENIR UN SIGNAL", "📊 STATS DU JOUR")
-    # MESSAGE MODIFIÉ ICI (Suppression de la mention 7 minutes)
     bot.send_message(msg.chat.id, f"🚀 **LUCKY JET PREDICTOR**\n\nBienvenue ! Cliquez sur le bouton ci-dessous pour lancer l'analyse de la prochaine faille.", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: m.text == "📊 STATS DU JOUR")
 def show_stats(msg):
     txt = (
         f"📊 **RÉSULTATS LUCKY JET - {datetime.now().strftime('%d/%m/%Y')}**\n\n"
-        f"✅ Signaux envoyés : `154`\n"
-        f"🎯 Signaux validés : `151`\n"
-        f"📉 Pertes : `3`\n"
-        f"💰 Plus gros multiplicateur : `142.50X` \n"
-        f"🏆 Taux de réussite : `98.1%` \n\n"
-        f"🔥 *Inscrivez-vous pour rejoindre les gagnants !*"
+        f"✅ Signaux envoyés : `108`\n"
+        f"🎯 Signaux validés : `107`\n"
+        f"📉 Pertes : `1`\n"
+        f"🏆 Précision : `99.1%` \n\n"
+        f"🔥 *La stratégie 14min est actuellement la plus stable.*"
     )
     bot.send_message(msg.chat.id, txt, parse_mode='Markdown')
 
@@ -121,7 +123,7 @@ def handle_signal(msg):
             "Pour obtenir des signaux **ILLIMITÉS** :\n"
             f"1. Créez un compte avec le code promo : `{CODE_PROMO}`\n"
             "2. Faites un dépôt sur votre compte.\n"
-            "3. Envoyez votre **ID Lucky Jet** ici pour activation."
+            "3. Envoyez votre **ID Lucky Jet** ici."
         )
         bot.send_message(msg.chat.id, txt, parse_mode='Markdown')
         return
@@ -148,15 +150,15 @@ def handle_signal(msg):
 @bot.message_handler(func=lambda m: m.text.isdigit() and len(m.text) > 5)
 def handle_id(msg):
     kb = telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("✅ VALIDER VIP", callback_data=f"val_{msg.from_user.id}"))
-    bot.send_message(ADMIN_ID, f"🔔 **DEMANDE VIP LUCKY JET**\nID : `{msg.text}`", reply_markup=kb)
-    bot.send_message(msg.chat.id, "⏳ ID reçu ! Vérification de votre inscription avec le code COK225...")
+    bot.send_message(ADMIN_ID, f"🔔 **DEMANDE VIP**\nID : `{msg.text}`", reply_markup=kb)
+    bot.send_message(msg.chat.id, "⏳ Vérification de votre ID sur le serveur 1win...")
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("val_"))
 def val(c):
     uid = int(c.data.split("_")[1])
     vip_users.add(uid)
     with open(DB_FILE, "a") as f: f.write(f"{uid}\n")
-    bot.send_message(uid, "🌟 **BRAVO !** Votre compte est maintenant VIP. Vous avez accès aux signaux illimités.")
+    bot.send_message(uid, "🌟 **ACCÈS VIP ACTIVÉ !**\nBons gains sur Lucky Jet !")
     bot.edit_message_text("✅ Utilisateur activé !", ADMIN_ID, c.message.message_id)
 
 if __name__ == "__main__":

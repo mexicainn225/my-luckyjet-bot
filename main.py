@@ -1,172 +1,97 @@
 import telebot, random, os, threading, time
 from datetime import datetime, timedelta
 from flask import Flask
+from pymongo import MongoClient
 
 app = Flask(__name__)
 
 # --- CONFIGURATION ---
 API_TOKEN = '8373837099:AAEffbpvjdegwuUgGT5nvPHAWB_oxSLIdu0' 
 ADMIN_ID = 5724620019  
+MONGO_URI = "mongodb+srv://mexicain225:03191967@cluster0.zmj8ocq.mongodb.net/" 
+
 bot = telebot.TeleBot(API_TOKEN)
 
-LIEN_INSCRIPTION = "https://lkbb.cc/e2d8"
-CODE_PROMO = "COK225"
-ID_VIDEO_UNIQUE = "https://t.me/gagnantpro1xbet/138958" 
+# Connexion MongoDB
+client = MongoClient(MONGO_URI)
+db = client['luckyjet_db']
+users_col = db['users'] 
 
-DB_FILE = "vip_users.txt"
-CONFIG_FILE = "base_minute.txt"
+# --- FONCTIONS BASE DE DONNÉES ---
+def get_user(u_id):
+    user = users_col.find_one({"_id": u_id})
+    if not user:
+        user = {"_id": u_id, "count": 0, "is_vip": False}
+        users_col.insert_one(user)
+    return user
 
-# --- PERSISTENCE ---
-def get_base_minute():
-    if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r") as f:
-            val = f.read().strip()
-            return int(val) if val.isdigit() else 23
-    return 23
+def update_user_count(u_id):
+    users_col.update_one({"_id": u_id}, {"$inc": {"count": 1}})
 
-def load_vip():
-    if os.path.exists(DB_FILE):
-        with open(DB_FILE, "r") as f: 
-            return set(int(l.strip()) for l in f if l.strip().isdigit())
-    return set()
+def set_vip(u_id):
+    users_col.update_one({"_id": u_id}, {"$set": {"is_vip": True}})
 
-vip_users = load_vip()
-user_counts = {}
-
-# --- LOGIQUE SYNCHRONISÉE LUCKY JET (INTERVALLE 14 MIN) ---
-def get_lucky_signal():
+# --- LOGIQUE DU SIGNAL ---
+def get_signal():
     now = datetime.now()
-    base_minute = get_base_minute()
-    
-    current_total = now.hour * 60 + now.minute
-    base_total = now.hour * 60 + base_minute
-    
-    if current_total < base_total:
-        base_total -= 60
+    # On génère un signal basé sur l'heure actuelle pour que tout le monde voit le même
+    seed_val = now.strftime("%Y%m%d%H%M")
+    random.seed(seed_val)
+    cote = round(random.uniform(1.5, 15.0), 2)
+    prev = round(random.uniform(1.2, 5.0), 2)
+    random.seed() # Reset seed
+    return cote, prev
 
-    next_mins = base_total
-    # L'intervalle est maintenant fixé à 14 minutes
-    while next_mins <= current_total:
-        next_mins += 14
-        
-    start_time = now.replace(hour=(next_mins // 60) % 24, minute=next_mins % 60, second=0, microsecond=0)
-    
-    random.seed(start_time.timestamp()) 
-    cote = random.randint(30, 150)
-    prevision = random.randint(10, 25)
-    assurance = random.randint(3, 9)
-    random.seed() 
-    return start_time, cote, prevision, assurance
-
-# --- ANIMATION ---
-def impressive_loading(chat_id):
-    steps = [
-        "📡 `Recherche de la faille algorithmique...`",
-        "⚙️ `Analyse des patterns (Double Cycle 14min)...`",
-        "🧠 `Calcul de probabilité IA : 99.2%...`",
-        "🚀 `SIGNAL DÉTECTÉ !`"
-    ]
-    sent_msg = bot.send_message(chat_id, steps[0], parse_mode='Markdown')
-    for step in steps[1:]:
-        time.sleep(1.5)
-        try: bot.edit_message_text(step, chat_id, sent_msg.message_id, parse_mode='Markdown')
-        except: pass
-    time.sleep(1)
-    try: bot.delete_message(chat_id, sent_msg.message_id)
-    except: pass
-
-# --- COMMANDES ADMIN ---
-@bot.message_handler(commands=['minute'])
-def change_minute(msg):
-    if msg.from_user.id == ADMIN_ID:
-        try:
-            val = msg.text.split()[1]
-            with open(CONFIG_FILE, "w") as f: f.write(val)
-            bot.send_message(ADMIN_ID, f"🎯 **STRATÉGIE RECALIBRÉE**\nBase : minute `{val}`\nIntervalle : **14 minutes**")
-        except:
-            bot.send_message(ADMIN_ID, "⚠️ Usage : `/minute 23`")
-
-@bot.message_handler(commands=['vip'])
-def list_vips(msg):
-    if msg.from_user.id == ADMIN_ID:
-        vips = load_vip()
-        liste = "\n".join([f"• `{uid}`" for uid in vips]) if vips else "Aucun VIP."
-        bot.send_message(ADMIN_ID, f"🌟 **MEMBRES VIP ({len(vips)})** :\n\n{liste}", parse_mode='Markdown')
-
-# --- ACTIONS UTILISATEURS ---
+# --- COMMANDES BOT ---
 @bot.message_handler(commands=['start'])
 def start(msg):
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("🚀 OBTENIR UN SIGNAL", "📊 STATS DU JOUR")
-    bot.send_message(msg.chat.id, f"🚀 **LUCKY JET PREDICTOR**\n\nBienvenue ! Cliquez sur le bouton ci-dessous pour lancer l'analyse de la prochaine faille.", reply_markup=markup)
-
-@bot.message_handler(func=lambda m: m.text == "📊 STATS DU JOUR")
-def show_stats(msg):
-    txt = (
-        f"📊 **RÉSULTATS LUCKY JET - {datetime.now().strftime('%d/%m/%Y')}**\n\n"
-        f"✅ Signaux envoyés : `108`\n"
-        f"🎯 Signaux validés : `107`\n"
-        f"📉 Pertes : `1`\n"
-        f"🏆 Précision : `99.1%` \n\n"
-        f"🔥 *La stratégie 14min est actuellement la plus stable.*"
-    )
-    bot.send_message(msg.chat.id, txt, parse_mode='Markdown')
+    markup.add("🚀 OBTENIR UN SIGNAL")
+    bot.send_message(msg.chat.id, "👋 Bienvenue sur le Bot Mexicain225 !", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: m.text == "🚀 OBTENIR UN SIGNAL")
-def handle_signal(msg):
+def send_signal(msg):
     u_id = msg.from_user.id
-    count = user_counts.get(u_id, 0)
-    
-    if u_id != ADMIN_ID and u_id not in vip_users and count >= 3:
-        txt = (
-            "🚫 **ACCÈS LIMITÉ (3/3)**\n\n"
-            "Pour obtenir des signaux **ILLIMITÉS** :\n"
-            f"1. Créez un compte avec le code promo : `{CODE_PROMO}`\n"
-            "2. Faites un dépôt sur votre compte.\n"
-            "3. Envoyez votre **ID Lucky Jet** ici."
-        )
-        bot.send_message(msg.chat.id, txt, parse_mode='Markdown')
+    user_data = get_user(u_id)
+
+    # Vérification Limite (Sauf Admin et VIP)
+    if u_id != ADMIN_ID and not user_data['is_vip'] and user_data['count'] >= 3:
+        bot.send_message(msg.chat.id, "🚫 **LIMITE ATTEINTE**\n\nTu as déjà utilisé tes 3 signaux gratuits.\n\nInscris-toi sur 1Win avec le code promo **COK225** et envoie ton ID ici pour devenir **VIP ILLIMITÉ** !")
         return
 
-    impressive_loading(msg.chat.id)
-    start_time, cote, prevision, assurance = get_lucky_signal()
-    time_range = f"{start_time.strftime('%H:%M')} - {(start_time + timedelta(minutes=2)).strftime('%H:%M')}"
+    status = bot.send_message(msg.chat.id, "⏳ Analyse du serveur en cours...")
+    time.sleep(1.5)
+    bot.delete_message(msg.chat.id, status.message_id)
+
+    cote, prev = get_signal()
     
-    if u_id != ADMIN_ID and u_id not in vip_users:
-        user_counts[u_id] = count + 1
+    if u_id != ADMIN_ID and not user_data['is_vip']:
+        update_user_count(u_id)
 
-    txt = (
-        f"🚀 **SIGNAL LUCKY JET** 🧨\n\n"
-        f"⚡️ **TIME** : `{time_range}`\n"
-        f"⚡️ **CÔTE** : `{cote}X+` \n"
-        f"⚡️ **PRÉVISION** : `{prevision}X+` \n"
-        f"⚡️ **ASSURANCE** : `{assurance}.50X+` \n\n"
-        f"📍 [CLIQUE ICI POUR JOUER]({LIEN_INSCRIPTION})\n"
-        f"🎁 **CODE PROMO** : `{CODE_PROMO}`"
-    )
-    kb = telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("🚀 JOUER MAINTENANT", url=LIEN_INSCRIPTION))
-    bot.send_video(msg.chat.id, ID_VIDEO_UNIQUE, caption=txt, reply_markup=kb, parse_mode='Markdown')
+    txt = f"🚀 **SIGNAL MEXICAIN225** 🧨\n\n⚡️ **CÔTE** : `{cote}X+` \n⚡️ **PRÉVISION** : `{prev}X+` \n⚡️ **ASSURANCE** : `2.00X` \n\n🎁 **CODE PROMO** : `COK225`"
+    
+    kb = telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("📍 JOUER MAINTENANT", url="https://lkbb.cc/e2d8"))
+    bot.send_message(msg.chat.id, txt, reply_markup=kb, parse_mode='Markdown')
 
-@bot.message_handler(func=lambda m: m.text.isdigit() and len(m.text) > 5)
+# --- VALIDATION VIP ---
+@bot.message_handler(func=lambda m: m.text.isdigit() and len(m.text) >= 7)
 def handle_id(msg):
+    # Envoie une alerte à l'admin pour valider
     kb = telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("✅ VALIDER VIP", callback_data=f"val_{msg.from_user.id}"))
-    bot.send_message(ADMIN_ID, f"🔔 **DEMANDE VIP**\nID : `{msg.text}`", reply_markup=kb)
-    bot.send_message(msg.chat.id, "⏳ Vérification de votre ID sur le serveur 1win...")
+    bot.send_message(ADMIN_ID, f"🔔 **NOUVEL ID REÇU**\nID: `{msg.text}`\nUser: @{msg.from_user.username}", reply_markup=kb)
+    bot.send_message(msg.chat.id, "✅ Ton ID a été envoyé pour vérification. Tu recevras une notification dès que ton accès VIP sera activé.")
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("val_"))
-def val(c):
+def val_callback(c):
     uid = int(c.data.split("_")[1])
-    vip_users.add(uid)
-    with open(DB_FILE, "a") as f: f.write(f"{uid}\n")
-    bot.send_message(uid, "🌟 **ACCÈS VIP ACTIVÉ !**\nBons gains sur Lucky Jet !")
-    bot.edit_message_text("✅ Utilisateur activé !", ADMIN_ID, c.message.message_id)
+    set_vip(uid)
+    bot.send_message(uid, "🌟 **FÉLICITATIONS !**\n\nTon compte a été validé. Tu es désormais membre **VIP ILLIMITÉ** ! Profite bien des signaux 🚀")
+    bot.answer_callback_query(c.id, "Utilisateur validé avec succès !")
+
+# --- SERVEUR FLASK POUR RENDER ---
+def run_flask():
+    app.run(host='0.0.0.0', port=10000)
 
 if __name__ == "__main__":
-    bot.remove_webhook()
-    time.sleep(1)
-    def run_bot():
-        while True:
-            try: bot.infinity_polling(timeout=20)
-            except: time.sleep(5)
-    threading.Thread(target=run_bot, daemon=True).start()
-    app.run(host='0.0.0.0', port=10000)
+    threading.Thread(target=run_flask).start()
+    bot.infinity_polling()

@@ -86,7 +86,6 @@ def list_vips(msg):
         if not vips:
             bot.send_message(ADMIN_ID, "🚫 Aucun utilisateur VIP pour le moment.")
             return
-        
         liste = "\n".join([f"• `{uid}`" for uid in vips])
         bot.send_message(ADMIN_ID, f"🌟 **LISTE DES MEMBRES VIP ({len(vips)})** :\n\n{liste}", parse_mode='Markdown')
 
@@ -95,7 +94,8 @@ def list_vips(msg):
 def start(msg):
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add("🚀 OBTENIR UN SIGNAL", "📊 STATS DU JOUR")
-    bot.send_message(msg.chat.id, f"🚀 **LUCKY JET PREDICTOR**\n\nBienvenue ! Utilisez nos signaux basés sur la faille algorithmique des 7 minutes.", reply_markup=markup)
+    # MESSAGE MODIFIÉ ICI (Suppression de la mention 7 minutes)
+    bot.send_message(msg.chat.id, f"🚀 **LUCKY JET PREDICTOR**\n\nBienvenue ! Cliquez sur le bouton ci-dessous pour lancer l'analyse de la prochaine faille.", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: m.text == "📊 STATS DU JOUR")
 def show_stats(msg):
@@ -115,7 +115,6 @@ def handle_signal(msg):
     u_id = msg.from_user.id
     count = user_counts.get(u_id, 0)
     
-    # 3 ESSAIS GRATUITS PUIS BLOCAGE
     if u_id != ADMIN_ID and u_id not in vip_users and count >= 3:
         txt = (
             "🚫 **ACCÈS LIMITÉ (3/3)**\n\n"
@@ -160,7 +159,6 @@ def val(c):
     bot.send_message(uid, "🌟 **BRAVO !** Votre compte est maintenant VIP. Vous avez accès aux signaux illimités.")
     bot.edit_message_text("✅ Utilisateur activé !", ADMIN_ID, c.message.message_id)
 
-# --- LANCEMENT ---
 if __name__ == "__main__":
     bot.remove_webhook()
     time.sleep(1)

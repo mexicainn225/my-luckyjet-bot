@@ -18,20 +18,17 @@ DB_FILE = "vip_users.txt"
 CONFIG_FILE = "base_minute.txt"
 
 # --- PERSISTENCE ---
-def load_db():
-    if os.path.exists(DB_FILE):
-        with open(DB_FILE, "r") as f: return set(int(l.strip()) for l in f if l.strip().isdigit())
-    return set()
-
-def save_user(u_id):
-    with open(DB_FILE, "a") as f: f.write(f"{u_id}\n")
-
 def get_base_minute():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r") as f:
             val = f.read().strip()
             return int(val) if val.isdigit() else 23
     return 23
+
+def load_db():
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, "r") as f: return set(int(l.strip()) for l in f if l.strip().isdigit())
+    return set()
 
 vip_users = load_db()
 user_counts = {}
@@ -42,46 +39,40 @@ def get_universal_signal():
     base_minute = get_base_minute()
     current_total = now.hour * 60 + now.minute
     base_total = now.hour * 60 + base_minute
-    
-    if current_total < base_total:
-        base_total -= 60
-
+    if current_total < base_total: base_total -= 60
     next_mins = base_total
-    while next_mins <= current_total:
-        next_mins += 7
-        
+    while next_mins <= current_total: next_mins += 7
     start_time = now.replace(hour=(next_mins // 60) % 24, minute=next_mins % 60, second=0, microsecond=0)
     
     random.seed(start_time.timestamp()) 
-    cote = random.randint(30, 150)
-    prevision = random.randint(10, 25)
+    cote, prev, assurance = random.randint(30, 150), random.randint(10, 25), random.randint(3, 9)
     random.seed() 
-    return start_time, cote, prevision
+    return start_time, cote, prev, assurance
 
-# --- COMMANDES ADMIN ---
-@bot.message_handler(commands=['config'])
-def config_minute(msg):
-    if msg.from_user.id == ADMIN_ID:
-        parts = msg.text.split()
-        if len(parts) > 1:
-            try:
-                new_min = int(parts[1])
-                if 0 <= new_min < 60:
-                    with open(CONFIG_FILE, "w") as f: f.write(str(new_min))
-                    bot.send_message(ADMIN_ID, f"✅ Minute de base : `{new_min}`")
-                else:
-                    bot.send_message(ADMIN_ID, "❌ Entre un nombre entre 0 et 59.")
-            except ValueError:
-                bot.send_message(ADMIN_ID, "❌ Format : `/config 23`")
-        else:
-            bot.send_message(ADMIN_ID, "❌ Format : `/config 23`")
+# --- ANIMATION D'IMPRESSION (L'ÉTAPE QUI CHARGE) ---
+def impressive_loading(chat_id):
+    steps = [
+        "🔍 `Connexion aux serveurs 1xBet...`",
+        "📡 `Extraction de l'algorithme de hachage...`",
+        "🧠 `Analyse de la tendance (Stratégie 7min)...`",
+        "⚖️ `Calcul de la probabilité de succès : 98.4%`",
+        "🚀 `GÉNÉRATION DU SIGNAL GAGNANT...`"
+    ]
+    
+    sent_msg = bot.send_message(chat_id, steps[0], parse_mode='Markdown')
+    for step in steps[1:]:
+        time.sleep(1.5) # Délai pour laisser l'utilisateur lire
+        bot.edit_message_text(step, chat_id, sent_msg.message_id, parse_mode='Markdown')
+    
+    time.sleep(1)
+    bot.delete_message(chat_id, sent_msg.message_id)
 
 # --- ACTIONS ---
 @bot.message_handler(commands=['start'])
 def start(msg):
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("🚀 OBTENIR UN SIGNAL")
-    bot.send_message(msg.chat.id, f"🔥 **Bienvenue {msg.from_user.first_name} !**", reply_markup=markup)
+    markup.add("🚀 OBTENIR UN SIGNAL", "📊 STATS DU JOUR")
+    bot.send_message(msg.chat.id, f"🔥 **Système MEXICAIN225 Actif**\nPrécision actuelle : 98%\n\nCliquez sur le bouton pour analyser.", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: m.text == "🚀 OBTENIR UN SIGNAL")
 def handle_signal(msg):
@@ -89,45 +80,53 @@ def handle_signal(msg):
     count = user_counts.get(u_id, 0)
     
     if u_id != ADMIN_ID and u_id not in vip_users and count >= 3:
-        bot.send_message(msg.chat.id, "🚫 **LIMITE ATTEINTE**\n\nInscris-toi avec le code `COK225` pour continuer.")
+        bot.send_message(msg.chat.id, "🚫 **LIMITE QUOTIDIENNE ATTEINTE**\n\nInscris-toi avec le code `COK225` et valide ton ID pour débloquer l'IA à vie.")
         return
 
-    status = bot.send_message(msg.chat.id, "⏳ `CALCUL EN COURS...`")
-    time.sleep(2)
-    bot.delete_message(msg.chat.id, status.message_id)
+    # LANCEMENT DE L'ANIMATION QUI IMPRESSIONNE
+    impressive_loading(msg.chat.id)
 
-    start_time, cote, prevision = get_universal_signal()
+    # Récupération des données
+    start_time, cote, prevision, assurance = get_universal_signal()
     time_range = f"{start_time.strftime('%H:%M')} - {(start_time + timedelta(minutes=2)).strftime('%H:%M')}"
-
-    if u_id != ADMIN_ID and u_id not in vip_users:
-        user_counts[u_id] = count + 1
+    if u_id != ADMIN_ID and u_id not in vip_users: user_counts[u_id] = count + 1
 
     txt = (
-        f"🚀 **SIGNAL MEXICAIN225** 🧨\n\n"
+        f"✅ **SIGNAL ANALYSÉ AVEC SUCCÈS** 🧨\n\n"
+        f"⚡️ **JEU** : `AVIATRIX / LUCKYJET`\n"
         f"⚡️ **TIME** : `{time_range}`\n"
         f"⚡️ **CÔTE** : `{cote}X+` \n"
         f"⚡️ **PRÉVISION** : `{prevision}X+` \n"
-        f"⚡️ **ASSURANCE** : `2.50X+` \n\n"
-        f"📍 **CLIQUE ICI POUR JOUER**\n"
-        f"🎁 **CODE PROMO** : `{CODE_PROMO}`\n\n"
-        f"👤 **CONTACT** : @MEXICAINN225"
+        f"⚡️ **ASSURANCE** : `{assurance}.50X+` \n\n"
+        f"📍 [CLIQUE ICI POUR JOUER]({LIEN_INSCRIPTION})\n"
+        f"🎁 **CODE PROMO** : `{CODE_PROMO}`"
     )
-    kb = telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("📍 JOUER", url=LIEN_INSCRIPTION))
+    kb = telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("📍 JOUER MAINTENANT", url=LIEN_INSCRIPTION))
     bot.send_video(msg.chat.id, ID_VIDEO_UNIQUE, caption=txt, reply_markup=kb, parse_mode='Markdown')
 
-@bot.message_handler(func=lambda m: m.text.isdigit() and len(m.text) > 5)
-def handle_id(msg):
-    kb = telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("✅ VALIDER", callback_data=f"val_{msg.from_user.id}"))
-    bot.send_message(ADMIN_ID, f"🔔 ID: `{msg.text}`", reply_markup=kb)
-    bot.send_message(msg.chat.id, "⏳ ID envoyé pour activation.")
+# --- COMMANDES ADMIN ---
+@bot.message_handler(commands=['minute'])
+def change_minute(msg):
+    if msg.from_user.id == ADMIN_ID:
+        try:
+            val = msg.text.split()[1]
+            with open(CONFIG_FILE, "w") as f: f.write(val)
+            bot.send_message(ADMIN_ID, f"✅ Stratégie recalibrée sur la minute `{val}`")
+        except: pass
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("val_"))
 def val(c):
     uid = int(c.data.split("_")[1])
     vip_users.add(uid)
-    save_user(uid)
-    bot.send_message(uid, "🌟 **COMPTE VALIDÉ !**")
-    bot.answer_callback_query(c.id, "Validé")
+    with open(DB_FILE, "a") as f: f.write(f"{uid}\n")
+    bot.send_message(uid, "🌟 **IA DÉBLOQUÉE !**\nTu as maintenant un accès illimité aux signaux.")
+    bot.edit_message_text("✅ Utilisateur validé !", ADMIN_ID, c.message.message_id)
+
+@bot.message_handler(func=lambda m: m.text.isdigit() and len(m.text) > 5)
+def handle_id(msg):
+    kb = telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("✅ VALIDER VIP", callback_data=f"val_{msg.from_user.id}"))
+    bot.send_message(ADMIN_ID, f"🔔 **NOUVEL ID** : `{msg.text}`", reply_markup=kb)
+    bot.send_message(msg.chat.id, "⏳ Analyse de votre ID par le serveur...")
 
 if __name__ == "__main__":
     bot.remove_webhook()

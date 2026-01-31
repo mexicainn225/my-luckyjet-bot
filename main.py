@@ -14,7 +14,7 @@ bot = telebot.TeleBot(API_TOKEN)
 client = MongoClient(MONGO_URI)
 db = client['luckyjet_db']
 users_col = db['users'] 
-config_col = db['config'] 
+config_col = db['config'] # Stockage de ta minute de base
 
 LIEN_INSCRIPTION = "https://lkbb.cc/e2d8"
 CODE_PROMO = "COK225"
@@ -33,22 +33,30 @@ def set_vip(u_id):
 
 def get_base_minute():
     conf = config_col.find_one({"_id": "settings"})
-    return conf['minute'] if conf else 23
+    return conf['minute'] if conf else 23 # 23 par défaut
 
 # --- LOGIQUE SIGNAL UNIQUE ---
 def get_universal_signal():
     now = datetime.now()
     base_minute = get_base_minute()
+    
     current_total = now.hour * 60 + now.minute
     base_total = now.hour * 60 + base_minute
-    if current_total < base_total: base_total -= 60
+    
+    if current_total < base_total:
+        base_total -= 60
+
     next_sig = base_total
-    while next_sig <= current_total: next_sig += 7
+    while next_sig <= current_total:
+        next_sig += 7
+        
     start_time = now.replace(hour=(next_sig // 60) % 24, minute=next_sig % 60, second=0, microsecond=0)
     
     random.seed(start_time.timestamp()) 
-    cote, prev = random.randint(30, 150), random.randint(10, 25)
+    cote = random.randint(30, 150)
+    prev = random.randint(10, 25)
     random.seed() 
+    
     return start_time, cote, prev
 
 # --- ACTIONS ---
@@ -68,57 +76,46 @@ def check_signal(msg):
         time.sleep(1.5)
         bot.delete_message(msg.chat.id, status.message_id)
         
-        # SIGNAL ACTUEL
         start_time, cote, prev = get_universal_signal()
         end_time = start_time + timedelta(minutes=2)
         
-        # SIGNAL FUTUR (+7 minutes)
-        next_start = start_time + timedelta(minutes=7)
-        next_end = next_start + timedelta(minutes=2)
-
         txt = (
             f"🚀 **SIGNAL VIP ACTIVÉ** 🧨\n\n"
-            f"✅ **SIGNAL ACTUEL**\n"
             f"⚡️ **TIME** : `{start_time.strftime('%H:%M')} - {end_time.strftime('%H:%M')}`\n"
             f"⚡️ **CÔTE** : `{cote}X+` \n"
             f"⚡️ **PRÉVISION** : `{prev}X+` \n\n"
-            f"🔜 **PROCHAIN SIGNAL**\n"
-            f"⌚️ **HEURE** : `{next_start.strftime('%H:%M')} - {next_end.strftime('%H:%M')}`\n\n"
             f"📍 **[CLIQUE ICI POUR JOUER]({LIEN_INSCRIPTION})**"
         )
-        bot.send_message(msg.chat.id, txt, parse_mode='Markdown', disable_web_page_preview=True)
+        bot.send_message(msg.chat.id, txt, parse_mode='Markdown')
     else:
-        txt = f"⚠️ **ACCÈS VIP REQUIS**\n\n1. Inscris-toi : [CLIQUE ICI]({LIEN_INSCRIPTION})\n2. Code Promo : **{CODE_PROMO}**\n3. Envoie ton ID ici."
+        txt = f"⚠️ **ACCÈS VIP REQUIS**\n\n1. Inscris-toi : [CLIQUE ICI]({LIEN_INSCRIPTION})\n2. Code Promo : **{CODE_PROMO}**\n3. Envoie ton ID ici pour validation."
         kb = telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("📍 S'INSCRIRE", url=LIEN_INSCRIPTION))
         bot.send_video(msg.chat.id, ID_VIDEO_PROMO, caption=txt, reply_markup=kb, parse_mode='Markdown')
 
-# --- COMMANDES ADMIN ---
+# --- COMMANDES ADMIN (CONFIG & VALIDATION) ---
 @bot.message_handler(commands=['config'])
 def set_config(msg):
     if msg.from_user.id == ADMIN_ID:
         try:
             new_min = int(msg.text.split()[1])
             config_col.update_one({"_id": "settings"}, {"$set": {"minute": new_min}}, upsert=True)
-            bot.send_message(ADMIN_ID, f"✅ Minute de base réglée sur `{new_min}`.")
-        except: pass
+            bot.send_message(ADMIN_ID, f"✅ **SUCCÈS** : La minute de base est maintenant `{new_min}`.")
+        except:
+            bot.send_message(ADMIN_ID, "❌ Erreur. Utilise : `/config 23`")
 
 @bot.message_handler(func=lambda m: m.text.isdigit() and len(m.text) >= 7)
 def handle_id(msg):
     kb = telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("✅ VALIDER VIP", callback_data=f"val_{msg.from_user.id}"))
     bot.send_message(ADMIN_ID, f"🔔 **DEMANDE VIP**\nID 1Win : `{msg.text}`", reply_markup=kb)
-    bot.send_message(msg.chat.id, "✅ ID reçu ! Validation en cours...")
+    bot.send_message(msg.chat.id, "✅ ID reçu ! Un administrateur va valider ton compte.")
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("val_"))
 def val_callback(c):
     uid = int(c.data.split("_")[1])
     set_vip(uid)
-    bot.send_message(uid, "🌟 **FÉLICITATIONS !** VIP activé.")
-    bot.answer_callback_query(c.id, "Validé !")
-
-@app.route('/')
-def home(): return "Bot is running"
+    bot.send_message(uid, "🌟 **FÉLICITATIONS !** Ton accès VIP est maintenant illimité. Clique sur le bouton pour ton signal !")
+    bot.answer_callback_query(c.id, "Utilisateur validé !")
 
 if __name__ == "__main__":
-    # Correction : On lance Flask et le bot sans créer de conflit
     threading.Thread(target=lambda: app.run(host='0.0.0.0', port=10000)).start()
-    bot.infinity_polling(skip_pending=True)
+    bot.infinity_polling()

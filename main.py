@@ -35,7 +35,7 @@ def get_base_minute():
     conf = config_col.find_one({"_id": "settings"})
     return conf['minute'] if conf else 23
 
-# --- LOGIQUE SIGNAL UNIQUE ---
+# --- LOGIQUE SIGNAL ---
 def get_universal_signal():
     now = datetime.now()
     base_minute = get_base_minute()
@@ -56,7 +56,7 @@ def get_universal_signal():
 def start(msg):
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add("🚀 OBTENIR UN SIGNAL")
-    bot.send_message(msg.chat.id, f"👋 Bienvenue sur le Bot Officiel !\n\nUtilise le code promo **{CODE_PROMO}** sur 1Win pour débloquer tes signaux.", reply_markup=markup)
+    bot.send_message(msg.chat.id, f"👋 Bienvenue !\n\nUtilise le code promo **{CODE_PROMO}** sur 1Win pour débloquer l'accès.", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: m.text == "🚀 OBTENIR UN SIGNAL")
 def check_signal(msg):
@@ -64,59 +64,49 @@ def check_signal(msg):
     user_data = get_user(u_id)
 
     if u_id == ADMIN_ID or user_data['is_vip']:
-        status = bot.send_message(msg.chat.id, "⏳ `ANALYSE DU SERVEUR...`")
+        status = bot.send_message(msg.chat.id, "⏳ `ANALYSE EN COURS...`")
         time.sleep(1.5)
         bot.delete_message(msg.chat.id, status.message_id)
         
-        # Récupération du temps réel du serveur
         start_time, cote, prev = get_universal_signal()
-        
-        # APPLICATION DU DÉCALAGE INVISIBLE DE -10 MIN
-        display_start = start_time - timedelta(minutes=10)
-        display_end = display_start + timedelta(minutes=2)
-        
-        # Prochain tour calculé avec le même décalage
-        next_time_real = start_time + timedelta(minutes=7)
-        display_next = next_time_real - timedelta(minutes=10)
+        next_time = start_time + timedelta(minutes=7)
 
         txt = (
             f"🚀 **SIGNAL CONFIRMÉ** 🧨\n\n"
-            f"⚡️ **HEURE** : `{display_start.strftime('%H:%M')} - {display_end.strftime('%H:%M')}`\n"
+            f"⚡️ **HEURE** : `{start_time.strftime('%H:%M')} - {(start_time+timedelta(minutes=2)).strftime('%H:%M')}`\n"
             f"⚡️ **CÔTE** : `{cote}X+` \n"
             f"⚡️ **PRÉVISION** : `{prev}X+` \n\n"
-            f"🔜 **PROCHAIN TOUR** : `{display_next.strftime('%H:%M')}`\n\n"
+            f"🔜 **PROCHAIN TOUR** : `{next_time.strftime('%H:%M')}`\n\n"
             f"🎁 **CODE** : `{CODE_PROMO}`"
         )
         kb = telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("📍 CLIQUE ICI POUR JOUER", url=LIEN_INSCRIPTION))
-        bot.send_message(msg.chat.id, txt, reply_markup=kb, parse_mode='Markdown', disable_web_page_preview=True)
+        bot.send_message(msg.chat.id, txt, reply_markup=kb, parse_mode='Markdown')
     else:
-        txt = f"⚠️ **ACCÈS VIP REQUIS**\n\nPour débloquer les signaux illimités :\n1. Inscris-toi ici : [CLIQUE ICI]({LIEN_INSCRIPTION})\n2. Code Promo : **{CODE_PROMO}**\n3. Envoie ton ID 1Win ici."
-        kb = telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("📍 S'INSCRIRE SUR 1WIN", url=LIEN_INSCRIPTION))
+        txt = f"⚠️ **ACCÈS VIP REQUIS**\n\n1. Inscris-toi : [CLIQUE ICI]({LIEN_INSCRIPTION})\n2. Code Promo : **{CODE_PROMO}**\n3. Envoie ton ID ici."
+        kb = telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("📍 S'INSCRIRE", url=LIEN_INSCRIPTION))
         bot.send_video(msg.chat.id, ID_VIDEO_PROMO, caption=txt, reply_markup=kb, parse_mode='Markdown')
 
-# --- COMMANDES ADMIN ---
 @bot.message_handler(commands=['config'])
 def config(msg):
     if msg.from_user.id == ADMIN_ID:
         try:
             new_min = int(msg.text.split()[1])
             config_col.update_one({"_id": "settings"}, {"$set": {"minute": new_min}}, upsert=True)
-            bot.send_message(ADMIN_ID, f"✅ Configuration mise à jour sur la minute `{new_min}`.")
-        except:
-            bot.send_message(ADMIN_ID, "❌ Format : `/config 23`")
+            bot.send_message(ADMIN_ID, f"✅ Base réglée sur `{new_min}`")
+        except: pass
 
 @bot.message_handler(func=lambda m: m.text.isdigit() and len(m.text) >= 7)
 def handle_id(msg):
     kb = telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("✅ VALIDER VIP", callback_data=f"val_{msg.from_user.id}"))
-    bot.send_message(ADMIN_ID, f"🔔 **DEMANDE D'ACCÈS**\nID 1Win : `{msg.text}`\nUser : @{msg.from_user.username}", reply_markup=kb)
-    bot.send_message(msg.chat.id, "✅ Ton ID a été envoyé. Un administrateur va valider ton compte sous peu.")
+    bot.send_message(ADMIN_ID, f"🔔 **NOUVEL ID** : `{msg.text}`", reply_markup=kb)
+    bot.send_message(msg.chat.id, "✅ ID reçu ! Un administrateur va valider ton compte.")
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("val_"))
 def val_callback(c):
     uid = int(c.data.split("_")[1])
     set_vip(uid)
-    bot.send_message(uid, "🌟 **FÉLICITATIONS !**\n\nTon accès VIP est maintenant activé. Clique sur le bouton pour ton premier signal !")
-    bot.answer_callback_query(c.id, "Utilisateur validé")
+    bot.send_message(uid, "🌟 **VIP ACTIVÉ !**")
+    bot.answer_callback_query(c.id, "Validé")
 
 if __name__ == "__main__":
     threading.Thread(target=lambda: app.run(host='0.0.0.0', port=10000)).start()
